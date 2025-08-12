@@ -38,7 +38,7 @@ function getRankBadge(rank: number): string {
 }
 
 export default function TopRatedUsers() {
-  const { data: topUsers, isLoading } = useQuery({
+  const { data: topUsers, isLoading } = useQuery<TopRatedUser[]>({
     queryKey: ["/api/users/top"],
     refetchInterval: 60000, // Refresh every minute
   });

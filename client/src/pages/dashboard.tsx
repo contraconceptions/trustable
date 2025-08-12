@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { DashboardStats } from "@shared/schema";
 import Sidebar from "@/components/sidebar";
 import StatsGrid from "@/components/stats-grid";
 import RecentRatings from "@/components/recent-ratings";
@@ -9,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
 export default function Dashboard() {
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/stats"],
     refetchInterval: 30000, // Refresh every 30 seconds
   });

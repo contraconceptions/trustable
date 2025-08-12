@@ -42,7 +42,7 @@ function formatTimeAgo(date: string): string {
 }
 
 export default function RecentRatings() {
-  const { data: recentRatings, isLoading } = useQuery({
+  const { data: recentRatings, isLoading } = useQuery<RecentRating[]>({
     queryKey: ["/api/ratings/recent"],
     refetchInterval: 10000, // Refresh every 10 seconds
   });
@@ -84,7 +84,7 @@ export default function RecentRatings() {
                       {rating.ratedUser.discriminator && `#${rating.ratedUser.discriminator}`}
                     </span>
                     <span className="text-xs text-discord-muted">
-                      {formatTimeAgo(rating.createdAt)}
+                      {formatTimeAgo(rating.createdAt.toString())}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2 mt-1">

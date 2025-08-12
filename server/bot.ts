@@ -10,9 +10,7 @@ import type { InsertUser, InsertServer, InsertRating } from '@shared/schema';
 
 const client = new Client({
   intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildMessages
+    GatewayIntentBits.Guilds
   ]
 });
 
@@ -130,7 +128,7 @@ client.once('ready', async () => {
 });
 
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isCommand()) return;
+  if (!interaction.isChatInputCommand()) return;
 
   const { commandName, options, user, guild } = interaction;
 
@@ -244,7 +242,7 @@ client.on('interactionCreate', async interaction => {
             { name: 'Average Rating', value: `${starDisplay}\n${avgRating.toFixed(2)}/3.0`, inline: true },
             { name: 'Total Ratings', value: userWithRatings.totalRatings.toString(), inline: true },
             { name: 'Servers', value: `Active in ${userWithRatings.ratingsReceived.length > 0 ? 
-              [...new Set(userWithRatings.ratingsReceived.map(r => r.server.name))].length : 0} servers`, inline: true }
+              Array.from(new Set(userWithRatings.ratingsReceived.map(r => r.server.name))).length : 0} servers`, inline: true }
           )
           .setTimestamp();
 
