@@ -6,6 +6,18 @@ GamerRating Bot is a Discord bot application that creates a cross-server reputat
 
 Preferred communication style: Simple, everyday language.
 
+# Recent Changes
+
+## August 12, 2025 - Bot Successfully Deployed and Tested
+- Discord bot successfully connected and registered all commands
+- Bot added to "contra-verse" test server and functioning properly
+- Visual rating features confirmed working:
+  * Rating badges and titles display correctly
+  * Star rating system working
+  * Context menu commands functional
+  * Slash commands responsive
+- Cross-server reputation system operational
+
 # System Architecture
 
 ## Frontend Architecture

@@ -113,8 +113,8 @@ export class DatabaseStorage implements IStorage {
       await db
         .update(users)
         .set({
-          averageRating: userRatings[0].avg.toFixed(2),
-          totalRatings: userRatings[0].count,
+          averageRating: Number(userRatings[0].avg).toFixed(2),
+          totalRatings: Number(userRatings[0].count),
           updatedAt: new Date()
         })
         .where(eq(users.id, insertRating.ratedUserId));
