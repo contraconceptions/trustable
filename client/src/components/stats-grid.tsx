@@ -33,7 +33,7 @@ export default function StatsGrid({ stats, isLoading }: StatsGridProps) {
     },
     {
       title: "Average Rating",
-      value: stats?.averageRating ? stats.averageRating.toFixed(1) : "0.0",
+      value: stats?.averageRating ? Number(stats.averageRating).toFixed(1) : "0.0",
       icon: TrendingUp,
       color: "discord-blue",
       change: "2.8"
