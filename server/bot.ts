@@ -3,7 +3,9 @@ import {
   GatewayIntentBits, 
   SlashCommandBuilder, 
   EmbedBuilder,
-  PermissionFlagsBits 
+  PermissionFlagsBits,
+  ContextMenuCommandBuilder,
+  ApplicationCommandType 
 } from 'discord.js';
 import { storage } from './storage';
 import type { InsertUser, InsertServer, InsertRating } from '@shared/schema';
@@ -66,8 +68,35 @@ function getStarDisplay(rating: number): string {
   return filled + empty;
 }
 
+function getRatingBadge(avgRating: number, totalRatings: number): string {
+  if (totalRatings === 0) return '';
+  
+  const rating = Math.round(avgRating);
+  if (rating >= 3 && totalRatings >= 10) return '🏆'; // Champion (3 stars, 10+ ratings)
+  if (rating >= 3 && totalRatings >= 5) return '⭐'; // Gold star (3 stars, 5+ ratings)  
+  if (rating >= 2 && totalRatings >= 5) return '🥈'; // Silver (2+ stars, 5+ ratings)
+  if (rating >= 1 && totalRatings >= 3) return '🥉'; // Bronze (1+ stars, 3+ ratings)
+  return '🆕'; // New player
+}
+
+function getRatingTitle(avgRating: number, totalRatings: number): string {
+  if (totalRatings === 0) return 'Unrated';
+  
+  const rating = Math.round(avgRating);
+  if (rating >= 3 && totalRatings >= 10) return 'Champion';
+  if (rating >= 3 && totalRatings >= 5) return 'Gold Star Player';
+  if (rating >= 2 && totalRatings >= 5) return 'Silver Player';
+  if (rating >= 1 && totalRatings >= 3) return 'Bronze Player';
+  return 'New Player';
+}
+
 client.once('ready', async () => {
   console.log(`Discord bot logged in as ${client.user?.tag}!`);
+  
+  // Set bot activity/presence
+  if (client.user) {
+    client.user.setActivity('reputation across servers', { type: 3 }); // Watching
+  }
   
   // Register slash commands
   const commands = [
@@ -106,6 +135,14 @@ client.once('ready', async () => {
       .setDescription('View top rated users'),
     
     new SlashCommandBuilder()
+      .setName('profile')
+      .setDescription('Show detailed user profile with rating history')
+      .addUserOption(option =>
+        option.setName('user')
+          .setDescription('User to view profile for (leave empty for yourself)')
+          .setRequired(false)),
+    
+    new SlashCommandBuilder()
       .setName('moderate')
       .setDescription('Moderation commands (Admins only)')
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
@@ -116,7 +153,12 @@ client.once('ready', async () => {
           .addUserOption(option =>
             option.setName('user')
               .setDescription('User whose ratings to manage')
-              .setRequired(true)))
+              .setRequired(true))),
+    
+    // Context menu command for quick rating checks
+    new ContextMenuCommandBuilder()
+      .setName('Check Rating')
+      .setType(ApplicationCommandType.User)
   ];
 
   try {
@@ -128,9 +170,9 @@ client.once('ready', async () => {
 });
 
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isChatInputCommand()) return;
+  if (!interaction.isChatInputCommand() && !interaction.isUserContextMenuCommand()) return;
 
-  const { commandName, options, user, guild } = interaction;
+  const { user, guild } = interaction;
 
   if (!guild) {
     await interaction.reply({ content: 'This bot only works in servers!', ephemeral: true });
@@ -138,6 +180,55 @@ client.on('interactionCreate', async interaction => {
   }
 
   try {
+    // Handle context menu commands
+    if (interaction.isUserContextMenuCommand()) {
+      if (interaction.commandName === 'Check Rating') {
+        const targetUser = interaction.targetUser;
+        
+        const dbUser = await storage.getUserByDiscordId(targetUser.id);
+        if (!dbUser) {
+          await interaction.reply({ 
+            content: `❌ ${targetUser.username} hasn't been rated yet!`, 
+            ephemeral: true 
+          });
+          return;
+        }
+
+        const userWithRatings = await storage.getUserWithRatings(dbUser.id);
+        if (!userWithRatings) {
+          await interaction.reply({ 
+            content: `❌ ${targetUser.username} hasn't been rated yet!`, 
+            ephemeral: true 
+          });
+          return;
+        }
+
+        const avgRating = parseFloat(userWithRatings.averageRating || '0');
+        const badge = getRatingBadge(avgRating, userWithRatings.totalRatings);
+        const title = getRatingTitle(avgRating, userWithRatings.totalRatings);
+        const starDisplay = avgRating > 0 ? getStarDisplay(Math.round(avgRating)) : 'No ratings yet';
+
+        const embed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle(`${badge} ${targetUser.username}'s Reputation`)
+          .setThumbnail(targetUser.displayAvatarURL())
+          .addFields(
+            { name: 'Title', value: title, inline: true },
+            { name: 'Rating', value: `${starDisplay} (${avgRating.toFixed(1)}/3.0)`, inline: true },
+            { name: 'Total Ratings', value: userWithRatings.totalRatings.toString(), inline: true }
+          )
+          .setTimestamp();
+
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+        return;
+      }
+    }
+
+    // Handle slash commands
+    if (!interaction.isChatInputCommand()) return;
+    
+    const { commandName, options } = interaction;
+    
     switch (commandName) {
       case 'rate': {
         const targetUser = options.getUser('user', true);
@@ -232,14 +323,17 @@ client.on('interactionCreate', async interaction => {
         }
 
         const avgRating = parseFloat(userWithRatings.averageRating || '0');
+        const badge = getRatingBadge(avgRating, userWithRatings.totalRatings);
+        const title = getRatingTitle(avgRating, userWithRatings.totalRatings);
         const starDisplay = avgRating > 0 ? getStarDisplay(Math.round(avgRating)) : 'No ratings yet';
 
         const embed = new EmbedBuilder()
           .setColor(0x5865F2)
-          .setTitle(`📊 ${targetUser.username}'s Reputation`)
+          .setTitle(`${badge} ${targetUser.username}'s Reputation`)
+          .setDescription(`**${title}**`)
           .setThumbnail(targetUser.displayAvatarURL())
           .addFields(
-            { name: 'Average Rating', value: `${starDisplay}\n${avgRating.toFixed(2)}/3.0`, inline: true },
+            { name: 'Rating', value: `${starDisplay}\n${avgRating.toFixed(2)}/3.0`, inline: true },
             { name: 'Total Ratings', value: userWithRatings.totalRatings.toString(), inline: true },
             { name: 'Servers', value: `Active in ${userWithRatings.ratingsReceived.length > 0 ? 
               Array.from(new Set(userWithRatings.ratingsReceived.map(r => r.server.name))).length : 0} servers`, inline: true }
@@ -267,8 +361,10 @@ client.on('interactionCreate', async interaction => {
         const leaderboard = topUsers.map((user, index) => {
           const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
           const avgRating = parseFloat(user.averageRating || '0');
-          return `${medal} **${user.username}** - ${getStarDisplay(Math.round(avgRating))} (${avgRating.toFixed(2)}/3.0) - ${user.totalRatings} ratings`;
-        }).join('\n');
+          const badge = getRatingBadge(avgRating, user.totalRatings);
+          const title = getRatingTitle(avgRating, user.totalRatings);
+          return `${medal} ${badge} **${user.username}** - ${getStarDisplay(Math.round(avgRating))} (${avgRating.toFixed(2)}/3.0)\n   *${title}* • ${user.totalRatings} ratings`;
+        }).join('\n\n');
 
         embed.setDescription(`${embed.data.description}\n\n${leaderboard}`);
 
@@ -301,6 +397,59 @@ client.on('interactionCreate', async interaction => {
             ephemeral: true 
           });
         }
+        break;
+      }
+
+      case 'profile': {
+        const targetUser = options.getUser('user') || user;
+        
+        const dbUser = await storage.getUserByDiscordId(targetUser.id);
+        if (!dbUser) {
+          await interaction.reply({ 
+            content: `❌ ${targetUser.username} hasn't been rated yet!`, 
+            ephemeral: true 
+          });
+          return;
+        }
+
+        const userWithRatings = await storage.getUserWithRatings(dbUser.id);
+        if (!userWithRatings) {
+          await interaction.reply({ 
+            content: `❌ ${targetUser.username} hasn't been rated yet!`, 
+            ephemeral: true 
+          });
+          return;
+        }
+
+        const avgRating = parseFloat(userWithRatings.averageRating || '0');
+        const badge = getRatingBadge(avgRating, userWithRatings.totalRatings);
+        const title = getRatingTitle(avgRating, userWithRatings.totalRatings);
+        
+        // Get recent ratings received (last 5)
+        const recentRatings = userWithRatings.ratingsReceived
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, 5);
+
+        const embed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle(`${badge} ${targetUser.username}'s Gaming Profile`)
+          .setDescription(`**${title}**\n${avgRating > 0 ? getStarDisplay(Math.round(avgRating)) : 'No ratings yet'} ${avgRating.toFixed(2)}/3.0`)
+          .setThumbnail(targetUser.displayAvatarURL())
+          .addFields(
+            { name: '📊 Stats', value: `**${userWithRatings.totalRatings}** ratings\n**${Array.from(new Set(userWithRatings.ratingsReceived.map(r => r.server.name))).length}** servers`, inline: true },
+            { name: '📈 Breakdown', value: `⭐⭐⭐ ${userWithRatings.ratingsReceived.filter(r => r.rating === 3).length}\n⭐⭐ ${userWithRatings.ratingsReceived.filter(r => r.rating === 2).length}\n⭐ ${userWithRatings.ratingsReceived.filter(r => r.rating === 1).length}`, inline: true },
+            { name: '📅 Member Since', value: `<t:${Math.floor(new Date(userWithRatings.createdAt).getTime() / 1000)}:R>`, inline: true }
+          );
+
+        if (recentRatings.length > 0) {
+          const recentText = recentRatings.map(r => 
+            `${getStarDisplay(r.rating)} ${r.comment ? `"${r.comment.slice(0, 50)}${r.comment.length > 50 ? '...' : ''}"` : 'No comment'} - *${r.server.name}*`
+          ).join('\n');
+          embed.addFields({ name: '💭 Recent Feedback', value: recentText });
+        }
+
+        embed.setTimestamp();
+        await interaction.reply({ embeds: [embed] });
         break;
       }
 
