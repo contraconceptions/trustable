@@ -35,6 +35,7 @@ export interface IStorage {
   // Rating operations
   createRating(rating: InsertRating): Promise<Rating>;
   getRatingsByUser(userId: string): Promise<Rating[]>;
+  getRatingsByServer(serverId: string): Promise<Rating[]>;
   getRecentRatings(limit?: number): Promise<RecentRating[]>;
   
   // Rate limiting
@@ -134,6 +135,10 @@ export class DatabaseStorage implements IStorage {
 
   async getRatingsByUser(userId: string): Promise<Rating[]> {
     return await db.select().from(ratings).where(eq(ratings.ratedUserId, userId));
+  }
+
+  async getRatingsByServer(serverId: string): Promise<Rating[]> {
+    return await db.select().from(ratings).where(eq(ratings.serverId, serverId));
   }
 
   async getRecentRatings(limit: number = 10): Promise<RecentRating[]> {

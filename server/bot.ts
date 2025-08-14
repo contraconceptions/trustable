@@ -5,16 +5,31 @@ import {
   EmbedBuilder,
   PermissionFlagsBits,
   ContextMenuCommandBuilder,
-  ApplicationCommandType 
+  ApplicationCommandType,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  StringSelectMenuBuilder,
+  AttachmentBuilder,
+  Collection
 } from 'discord.js';
 import { storage } from './storage';
 import type { InsertUser, InsertServer, InsertRating } from '@shared/schema';
 
 const client = new Client({
   intents: [
-    GatewayIntentBits.Guilds
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildVoiceStates
   ]
 });
+
+// Store for cooldowns and temporary data
+const rateCooldowns = new Collection();
+const ratingInProgress = new Collection();
 
 async function ensureUserExists(discordUser: any): Promise<string> {
   let user = await storage.getUserByDiscordId(discordUser.id);
@@ -90,6 +105,231 @@ function getRatingTitle(avgRating: number, totalRatings: number): string {
   return 'New Player';
 }
 
+function createProgressBar(current: number, max: number, length: number = 10): string {
+  const filled = Math.round((current / max) * length);
+  const empty = length - filled;
+  return '█'.repeat(filled) + '░'.repeat(empty);
+}
+
+function createQuickRatingButtons(targetUserId: string): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId(`quick_rate_1_${targetUserId}`)
+        .setLabel('⭐ Poor')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`quick_rate_2_${targetUserId}`)
+        .setLabel('⭐⭐ Good')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`quick_rate_3_${targetUserId}`)
+        .setLabel('⭐⭐⭐ Excellent')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId(`detailed_rate_${targetUserId}`)
+        .setLabel('📝 Detailed Rating')
+        .setStyle(ButtonStyle.Secondary)
+    );
+}
+
+function createRatingModal(targetUserId: string): ModalBuilder {
+  const modal = new ModalBuilder()
+    .setCustomId(`rating_modal_${targetUserId}`)
+    .setTitle('🌟 Detailed Player Rating');
+
+  const ratingInput = new TextInputBuilder()
+    .setCustomId('rating_value')
+    .setLabel('Rating (1-3 stars)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('Enter 1, 2, or 3')
+    .setMinLength(1)
+    .setMaxLength(1)
+    .setRequired(true);
+
+  const categoryInput = new TextInputBuilder()
+    .setCustomId('rating_category')
+    .setLabel('What are you rating? (Optional)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('e.g., Teamwork, Communication, Skill, Attitude')
+    .setRequired(false);
+
+  const commentInput = new TextInputBuilder()
+    .setCustomId('rating_comment')
+    .setLabel('Comments (Optional)')
+    .setStyle(TextInputStyle.Paragraph)
+    .setPlaceholder('Share your experience with this player...')
+    .setMaxLength(500)
+    .setRequired(false);
+
+  const interactionInput = new TextInputBuilder()
+    .setCustomId('interaction_context')
+    .setLabel('Where did you interact? (Optional)')
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder('e.g., Voice chat, game lobby, tournament')
+    .setRequired(false);
+
+  modal.addComponents(
+    new ActionRowBuilder<TextInputBuilder>().addComponents(ratingInput),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(categoryInput),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(commentInput),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(interactionInput)
+  );
+
+  return modal;
+}
+
+async function handleQuickRating(interaction: any, targetUser: any, rating: number, raterUser: any, guild: any, comment?: string) {
+  try {
+    // Ensure users and server exist
+    const raterUserId = await ensureUserExists(raterUser);
+    const ratedUserId = await ensureUserExists(targetUser);
+    const serverId = await ensureServerExists(guild);
+
+    // Check rate limiting
+    const canRate = await storage.canUserRate(raterUserId, ratedUserId);
+    if (!canRate) {
+      await interaction.reply({ 
+        content: '❌ You can only rate the same user once per 24 hours!', 
+        ephemeral: true 
+      });
+      return;
+    }
+
+    // Create or update rate limit
+    const existingLimit = await storage.getRateLimit(raterUserId, ratedUserId);
+    if (existingLimit) {
+      await storage.updateRateLimit(raterUserId, ratedUserId);
+    } else {
+      await storage.createRateLimit({
+        userId: raterUserId,
+        targetUserId: ratedUserId
+      });
+    }
+
+    // Create the rating
+    const ratingData: InsertRating = {
+      ratedUserId,
+      raterUserId,
+      serverId,
+      rating,
+      comment: comment || undefined
+    };
+
+    await storage.createRating(ratingData);
+
+    // Get updated stats for progress bar
+    const userWithRatings = await storage.getUserWithRatings(ratedUserId);
+    const avgRating = parseFloat(userWithRatings?.averageRating || '0');
+    const totalRatings = userWithRatings?.totalRatings || 0;
+    const badge = getRatingBadge(avgRating, totalRatings);
+    const title = getRatingTitle(avgRating, totalRatings);
+
+    const embed = new EmbedBuilder()
+      .setColor(rating === 3 ? 0x57F287 : rating === 2 ? 0x5865F2 : 0xED4245)
+      .setTitle(`✅ Rating Submitted!`)
+      .setDescription(`You rated **${targetUser.username}** ${getStarDisplay(rating)}`)
+      .setThumbnail(targetUser.displayAvatarURL())
+      .addFields(
+        { name: 'Your Rating', value: `${getStarDisplay(rating)} (${rating}/3)`, inline: true },
+        { name: 'Their New Average', value: `${badge} ${avgRating.toFixed(1)}/3.0`, inline: true },
+        { name: 'Total Ratings', value: totalRatings.toString(), inline: true }
+      )
+      .setFooter({ text: `Server: ${guild.name} • ${title}` })
+      .setTimestamp();
+
+    if (comment) {
+      embed.addFields({ name: 'Your Comment', value: comment });
+    }
+
+    await interaction.reply({ embeds: [embed], ephemeral: true });
+  } catch (error) {
+    console.error('Error in handleQuickRating:', error);
+    await interaction.reply({ 
+      content: '❌ An error occurred while submitting your rating. Please try again.', 
+      ephemeral: true 
+    });
+  }
+}
+
+async function handleDetailedRating(interaction: any, targetUser: any, rating: number, comment: string, raterUser: any, guild: any) {
+  try {
+    // Ensure users and server exist
+    const raterUserId = await ensureUserExists(raterUser);
+    const ratedUserId = await ensureUserExists(targetUser);
+    const serverId = await ensureServerExists(guild);
+
+    // Check rate limiting
+    const canRate = await storage.canUserRate(raterUserId, ratedUserId);
+    if (!canRate) {
+      await interaction.reply({ 
+        content: '❌ You can only rate the same user once per 24 hours!', 
+        ephemeral: true 
+      });
+      return;
+    }
+
+    // Create or update rate limit
+    const existingLimit = await storage.getRateLimit(raterUserId, ratedUserId);
+    if (existingLimit) {
+      await storage.updateRateLimit(raterUserId, ratedUserId);
+    } else {
+      await storage.createRateLimit({
+        userId: raterUserId,
+        targetUserId: ratedUserId
+      });
+    }
+
+    // Create the rating
+    const ratingData: InsertRating = {
+      ratedUserId,
+      raterUserId,
+      serverId,
+      rating,
+      comment: comment || undefined
+    };
+
+    await storage.createRating(ratingData);
+
+    // Get updated stats for comprehensive feedback
+    const userWithRatings = await storage.getUserWithRatings(ratedUserId);
+    const avgRating = parseFloat(userWithRatings?.averageRating || '0');
+    const totalRatings = userWithRatings?.totalRatings || 0;
+    const badge = getRatingBadge(avgRating, totalRatings);
+    const title = getRatingTitle(avgRating, totalRatings);
+    const progressToNext = createProgressBar(avgRating, 3, 12);
+
+    const embed = new EmbedBuilder()
+      .setColor(0x5865F2)
+      .setTitle(`🌟 Detailed Rating Submitted!`)
+      .setDescription(`Thank you for providing detailed feedback about **${targetUser.username}**`)
+      .setThumbnail(targetUser.displayAvatarURL())
+      .addFields(
+        { name: '⭐ Your Rating', value: `${getStarDisplay(rating)} (${rating}/3 stars)`, inline: true },
+        { name: '📊 New Average', value: `${avgRating.toFixed(2)}/3.0`, inline: true },
+        { name: '🏆 Current Title', value: `${badge} ${title}`, inline: true },
+        { name: '📈 Rating Progress', value: `${progressToNext}\n${totalRatings} total ratings`, inline: false }
+      )
+      .setFooter({ text: `Server: ${guild.name} • Community Building` })
+      .setTimestamp();
+
+    if (comment) {
+      embed.addFields({ 
+        name: '💭 Your Detailed Feedback', 
+        value: comment.length > 1000 ? comment.substring(0, 1000) + '...' : comment 
+      });
+    }
+
+    await interaction.reply({ embeds: [embed], ephemeral: true });
+  } catch (error) {
+    console.error('Error in handleDetailedRating:', error);
+    await interaction.reply({ 
+      content: '❌ An error occurred while submitting your detailed rating. Please try again.', 
+      ephemeral: true 
+    });
+  }
+}
+
 client.once('ready', async () => {
   console.log(`Discord bot logged in as ${client.user?.tag}!`);
   
@@ -102,23 +342,31 @@ client.once('ready', async () => {
   const commands = [
     new SlashCommandBuilder()
       .setName('rate')
-      .setDescription('Rate another user (1-3 stars)')
+      .setDescription('🌟 Rate another player with interactive buttons or detailed form')
       .addUserOption(option =>
         option.setName('user')
-          .setDescription('The user to rate')
+          .setDescription('The player to rate')
+          .setRequired(true)),
+    
+    new SlashCommandBuilder()
+      .setName('quickrate')
+      .setDescription('⚡ Quick rating with preset options')
+      .addUserOption(option =>
+        option.setName('user')
+          .setDescription('The player to rate')
           .setRequired(true))
       .addIntegerOption(option =>
         option.setName('rating')
           .setDescription('Rating (1-3 stars)')
           .setRequired(true)
           .addChoices(
-            { name: '1 Star - Poor', value: 1 },
-            { name: '2 Stars - Good', value: 2 },
-            { name: '3 Stars - Excellent', value: 3 }
+            { name: '⭐ Poor - Negative experience', value: 1 },
+            { name: '⭐⭐ Good - Positive experience', value: 2 },
+            { name: '⭐⭐⭐ Excellent - Outstanding player', value: 3 }
           ))
       .addStringOption(option =>
         option.setName('comment')
-          .setDescription('Optional comment')
+          .setDescription('Quick comment (optional)')
           .setRequired(false)
           .setMaxLength(200)),
     
@@ -132,11 +380,19 @@ client.once('ready', async () => {
     
     new SlashCommandBuilder()
       .setName('leaderboard')
-      .setDescription('View top rated users'),
+      .setDescription('🏆 View the top-rated users across all servers'),
+
+    new SlashCommandBuilder()
+      .setName('mystats')
+      .setDescription('📈 View your personal rating statistics and activity'),
+
+    new SlashCommandBuilder()
+      .setName('serverstats')
+      .setDescription('🏠 View rating statistics for this server'),
     
     new SlashCommandBuilder()
       .setName('profile')
-      .setDescription('Show detailed user profile with rating history')
+      .setDescription('👤 Show detailed user profile with rating history')
       .addUserOption(option =>
         option.setName('user')
           .setDescription('User to view profile for (leave empty for yourself)')
@@ -170,8 +426,6 @@ client.once('ready', async () => {
 });
 
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isChatInputCommand() && !interaction.isUserContextMenuCommand()) return;
-
   const { user, guild } = interaction;
 
   if (!guild) {
@@ -180,6 +434,60 @@ client.on('interactionCreate', async interaction => {
   }
 
   try {
+    // Handle button interactions
+    if (interaction.isButton()) {
+      const customId = interaction.customId;
+      
+      if (customId.startsWith('quick_rate_')) {
+        const [, , rating, targetUserId] = customId.split('_');
+        const targetUser = await client.users.fetch(targetUserId);
+        
+        if (!targetUser) {
+          await interaction.reply({ content: '❌ User not found!', ephemeral: true });
+          return;
+        }
+
+        await handleQuickRating(interaction, targetUser, parseInt(rating), user, guild);
+        return;
+      }
+      
+      if (customId.startsWith('detailed_rate_')) {
+        const targetUserId = customId.split('_')[2];
+        const modal = createRatingModal(targetUserId);
+        await interaction.showModal(modal);
+        return;
+      }
+      return;
+    }
+
+    // Handle modal submissions
+    if (interaction.isModalSubmit()) {
+      if (interaction.customId.startsWith('rating_modal_')) {
+        const targetUserId = interaction.customId.split('_')[2];
+        const targetUser = await client.users.fetch(targetUserId);
+        
+        const rating = parseInt(interaction.fields.getTextInputValue('rating_value'));
+        const category = interaction.fields.getTextInputValue('rating_category') || '';
+        const comment = interaction.fields.getTextInputValue('rating_comment') || '';
+        const context = interaction.fields.getTextInputValue('interaction_context') || '';
+
+        if (!targetUser) {
+          await interaction.reply({ content: '❌ User not found!', ephemeral: true });
+          return;
+        }
+
+        if (isNaN(rating) || rating < 1 || rating > 3) {
+          await interaction.reply({ content: '❌ Please enter a valid rating (1, 2, or 3)!', ephemeral: true });
+          return;
+        }
+
+        const fullComment = [category, comment, context].filter(Boolean).join(' • ');
+        await handleDetailedRating(interaction, targetUser, rating, fullComment, user, guild);
+        return;
+      }
+      return;
+    }
+
     // Handle context menu commands
     if (interaction.isUserContextMenuCommand()) {
       if (interaction.commandName === 'Check Rating') {
@@ -228,9 +536,44 @@ client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
     
     const { commandName, options } = interaction;
-    
+
     switch (commandName) {
       case 'rate': {
+        const targetUser = options.getUser('user', true);
+
+        if (targetUser.id === user.id) {
+          await interaction.reply({ content: '❌ You cannot rate yourself!', ephemeral: true });
+          return;
+        }
+
+        if (targetUser.bot) {
+          await interaction.reply({ content: '❌ You cannot rate bots!', ephemeral: true });
+          return;
+        }
+
+        // Show interactive rating options
+        const embed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle(`🌟 Rate ${targetUser.username}`)
+          .setDescription('Choose how you want to rate this player:')
+          .setThumbnail(targetUser.displayAvatarURL())
+          .addFields(
+            { name: '⚡ Quick Rating', value: 'Use the buttons below for fast rating', inline: true },
+            { name: '📝 Detailed Rating', value: 'Click "Detailed Rating" for comprehensive feedback', inline: true }
+          )
+          .setFooter({ text: 'Your rating helps build the community reputation system' });
+
+        const buttons = createQuickRatingButtons(targetUser.id);
+        
+        await interaction.reply({ 
+          embeds: [embed], 
+          components: [buttons], 
+          ephemeral: true 
+        });
+        break;
+      }
+
+      case 'quickrate': {
         const targetUser = options.getUser('user', true);
         const rating = options.getInteger('rating', true);
         const comment = options.getString('comment');
@@ -245,61 +588,11 @@ client.on('interactionCreate', async interaction => {
           return;
         }
 
-        // Ensure users and server exist
-        const raterUserId = await ensureUserExists(user);
-        const ratedUserId = await ensureUserExists(targetUser);
-        const serverId = await ensureServerExists(guild);
-
-        // Check rate limiting
-        const canRate = await storage.canUserRate(raterUserId, ratedUserId);
-        if (!canRate) {
-          await interaction.reply({ 
-            content: '❌ You can only rate the same user once per 24 hours!', 
-            ephemeral: true 
-          });
-          return;
-        }
-
-        // Create or update rate limit
-        const existingLimit = await storage.getRateLimit(raterUserId, ratedUserId);
-        if (existingLimit) {
-          await storage.updateRateLimit(raterUserId, ratedUserId);
-        } else {
-          await storage.createRateLimit({
-            userId: raterUserId,
-            targetUserId: ratedUserId
-          });
-        }
-
-        // Create the rating
-        const ratingData: InsertRating = {
-          ratedUserId,
-          raterUserId,
-          serverId,
-          rating,
-          comment: comment || undefined
-        };
-
-        await storage.createRating(ratingData);
-
-        const embed = new EmbedBuilder()
-          .setColor(0x5865F2)
-          .setTitle('✅ Rating Submitted!')
-          .setDescription(`You rated **${targetUser.username}** ${getStarDisplay(rating)}`)
-          .addFields(
-            { name: 'Rating', value: `${rating}/3 stars`, inline: true },
-            { name: 'Server', value: guild.name, inline: true }
-          );
-
-        if (comment) {
-          embed.addFields({ name: 'Comment', value: comment });
-        }
-
-        embed.setTimestamp();
-
-        await interaction.reply({ embeds: [embed] });
+        await handleQuickRating(interaction, targetUser, rating, user, guild, comment);
         break;
       }
+
+
 
       case 'rating': {
         const targetUser = options.getUser('user') || user;
@@ -327,17 +620,50 @@ client.on('interactionCreate', async interaction => {
         const title = getRatingTitle(avgRating, userWithRatings.totalRatings);
         const starDisplay = avgRating > 0 ? getStarDisplay(Math.round(avgRating)) : 'No ratings yet';
 
+        // Create enhanced visual progress bars
+        const ratingProgress = createProgressBar(avgRating, 3, 15);
+        const experienceProgress = createProgressBar(userWithRatings.totalRatings, 50, 12);
+        
+        // Determine embed color based on rating
+        const embedColor = avgRating >= 2.5 ? 0x57F287 : // Green for excellent
+                          avgRating >= 2.0 ? 0x5865F2 : // Blue for good
+                          avgRating >= 1.5 ? 0xFEE75C : // Yellow for average
+                          0xED4245; // Red for poor
+
+        const recentRatings = userWithRatings.ratingsReceived.slice(0, 3);
+        const recentRatingsText = recentRatings.length > 0 
+          ? recentRatings.map(r => `${getStarDisplay(r.rating)} from **${r.rater?.username || 'Anonymous'}**`).join('\n')
+          : 'No recent ratings';
+
         const embed = new EmbedBuilder()
-          .setColor(0x5865F2)
-          .setTitle(`${badge} ${targetUser.username}'s Reputation`)
-          .setDescription(`**${title}**`)
+          .setColor(embedColor)
+          .setTitle(`${badge} ${targetUser.username}'s Reputation Profile`)
+          .setDescription(`**${title}** • Cross-server reputation system`)
           .setThumbnail(targetUser.displayAvatarURL())
           .addFields(
-            { name: 'Rating', value: `${starDisplay}\n${avgRating.toFixed(2)}/3.0`, inline: true },
-            { name: 'Total Ratings', value: userWithRatings.totalRatings.toString(), inline: true },
-            { name: 'Servers', value: `Active in ${userWithRatings.ratingsReceived.length > 0 ? 
-              Array.from(new Set(userWithRatings.ratingsReceived.map(r => r.server.name))).length : 0} servers`, inline: true }
+            { 
+              name: '⭐ Overall Rating', 
+              value: `${starDisplay}\n${ratingProgress}\n**${avgRating.toFixed(2)}/3.0** average`, 
+              inline: true 
+            },
+            { 
+              name: '📊 Experience Level', 
+              value: `${experienceProgress}\n**${userWithRatings.totalRatings}** total ratings`, 
+              inline: true 
+            },
+            { 
+              name: '🌐 Server Activity', 
+              value: `Active in **${userWithRatings.ratingsReceived.length > 0 ? 
+                Array.from(new Set(userWithRatings.ratingsReceived.map(r => r.server.name))).length : 0}** servers`, 
+              inline: true 
+            },
+            { 
+              name: '🕒 Recent Ratings', 
+              value: recentRatingsText, 
+              inline: false 
+            }
           )
+          .setFooter({ text: `Reputation System • ${new Date().toLocaleDateString()}` })
           .setTimestamp();
 
         await interaction.reply({ embeds: [embed] });
