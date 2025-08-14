@@ -45,8 +45,18 @@ export default function StatsGrid({ stats, isLoading }: StatsGridProps) {
       {statCards.map((stat, index) => (
         <Card key={index} className="bg-discord-gray p-6 border-discord-lightgray hover:border-discord-blue/50 transition-all duration-200">
           <div className="flex items-center justify-between mb-4">
-            <div className={`p-3 bg-${stat.color}/10 rounded-lg`}>
-              <stat.icon className={`text-${stat.color} text-xl w-6 h-6`} />
+            <div className={`p-3 rounded-lg ${
+              stat.color === 'discord-blue' ? 'bg-discord-blue/10' :
+              stat.color === 'discord-green' ? 'bg-discord-green/10' :
+              stat.color === 'discord-yellow' ? 'bg-discord-yellow/10' :
+              'bg-discord-blue/10'
+            }`}>
+              <stat.icon className={`text-xl w-6 h-6 ${
+                stat.color === 'discord-blue' ? 'text-discord-blue' :
+                stat.color === 'discord-green' ? 'text-discord-green' :
+                stat.color === 'discord-yellow' ? 'text-discord-yellow' :
+                'text-discord-blue'
+              }`} />
             </div>
             <span className="text-xs text-discord-green font-medium">
               {stat.change}

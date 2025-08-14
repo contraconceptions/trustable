@@ -24,7 +24,7 @@ async function ensureUserExists(discordUser: any): Promise<string> {
       discordId: discordUser.id,
       username: discordUser.username,
       discriminator: discordUser.discriminator || '0000',
-      avatarUrl: discordUser.displayAvatarURL()
+      avatarUrl: discordUser.displayAvatarURL() || null
     };
     user = await storage.createUser(userData);
   } else {
@@ -32,7 +32,7 @@ async function ensureUserExists(discordUser: any): Promise<string> {
     await storage.updateUser(user.id, {
       username: discordUser.username,
       discriminator: discordUser.discriminator || '0000',
-      avatarUrl: discordUser.displayAvatarURL()
+      avatarUrl: discordUser.displayAvatarURL() || null
     });
   }
   
@@ -46,16 +46,16 @@ async function ensureServerExists(discordGuild: any): Promise<string> {
     const serverData: InsertServer = {
       discordServerId: discordGuild.id,
       name: discordGuild.name,
-      iconUrl: discordGuild.iconURL(),
-      memberCount: discordGuild.memberCount
+      iconUrl: discordGuild.iconURL() || null,
+      memberCount: discordGuild.memberCount || 0
     };
     server = await storage.createServer(serverData);
   } else {
     // Update server info
     await storage.updateServer(server.id, {
       name: discordGuild.name,
-      iconUrl: discordGuild.iconURL(),
-      memberCount: discordGuild.memberCount
+      iconUrl: discordGuild.iconURL() || null,
+      memberCount: discordGuild.memberCount || 0
     });
   }
   

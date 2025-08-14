@@ -194,10 +194,10 @@ export class DatabaseStorage implements IStorage {
     const [avgRating] = await db.select({ avg: sql<number>`avg(${ratings.rating})` }).from(ratings);
 
     return {
-      totalUsers: userCount.count,
-      totalRatings: ratingCount.count,
-      activeServers: serverCount.count,
-      averageRating: avgRating.avg || 0
+      totalUsers: Number(userCount.count),
+      totalRatings: Number(ratingCount.count),
+      activeServers: Number(serverCount.count),
+      averageRating: Number(avgRating.avg || 0)
     };
   }
 
