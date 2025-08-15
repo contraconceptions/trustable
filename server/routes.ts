@@ -4,7 +4,7 @@ import passport from "passport";
 import { storage } from "./storage";
 import type { User } from "@shared/schema";
 import { insertRatingSchema } from "@shared/schema";
-import { startBot } from "./bot";
+import { startBot, getBotStats } from "./bot";
 
 // Authentication middleware
 function requireAuth(req: any, res: any, next: any) {
@@ -50,6 +50,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching stats:", error);
       res.status(500).json({ message: "Failed to fetch dashboard stats" });
+    }
+  });
+
+  // Bot status endpoint
+  app.get("/api/bot/status", (req, res) => {
+    try {
+      const botStats = getBotStats();
+      res.json(botStats);
+    } catch (error) {
+      console.error("Error fetching bot stats:", error);
+      res.status(500).json({ message: "Failed to fetch bot status" });
     }
   });
 

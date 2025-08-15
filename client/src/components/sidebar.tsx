@@ -1,8 +1,15 @@
 import { Card } from "@/components/ui/card";
 import { BarChart3, Users, Server, Shield, Settings } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import contraLogoImage from "@assets/contralogo_1755245922784.png";
 
 export default function Sidebar() {
+  const { data: botStatus } = useQuery({
+    queryKey: ['/api/bot/status'],
+    refetchInterval: 30000, // Refresh every 30 seconds
+    retry: false,
+  });
+
   const menuItems = [
     { name: "Dashboard", icon: BarChart3, active: true },
     { name: "User Ratings", icon: Users, active: false },
@@ -51,7 +58,9 @@ export default function Sidebar() {
               <span className="text-xs text-discord-green font-medium">Online</span>
             </div>
           </div>
-          <p className="text-xs text-discord-muted">Active in 247 servers</p>
+          <p className="text-xs text-discord-muted">
+            Active in {botStatus?.guildCount || 0} servers
+          </p>
         </Card>
       </div>
     </aside>

@@ -803,6 +803,17 @@ client.on('guildDelete', guild => {
   console.log(`Bot removed from server: ${guild.name} (${guild.id})`);
 });
 
+// Function to get bot statistics
+export function getBotStats() {
+  return {
+    guildCount: client.guilds.cache.size,
+    userCount: client.users.cache.size,
+    uptime: client.uptime,
+    readyAt: client.readyAt,
+    status: client.isReady() ? 'online' : 'offline'
+  };
+}
+
 export async function startBot() {
   const token = process.env.DISCORD_BOT_TOKEN;
   if (!token) {
