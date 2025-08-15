@@ -9,7 +9,7 @@ import QuickActions from "@/components/quick-actions";
 import { AuthButton } from "@/components/auth-button";
 import { PersonalStats } from "@/components/personal-stats";
 import { FeaturesShowcase } from "@/components/features-showcase";
-import { Testimonials } from "@/components/testimonials";
+
 import { StatsHighlights } from "@/components/stats-highlights";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -94,11 +94,6 @@ export default function Dashboard() {
             
             {/* Features Showcase */}
             <FeaturesShowcase />
-            
-            {/* Testimonials */}
-            <div className="mt-8">
-              <Testimonials />
-            </div>
           </TabsContent>
           
           <TabsContent value="personal" className="space-y-8">
