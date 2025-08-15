@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { BarChart3, Users, Server, Shield, Settings } from "lucide-react";
+import contraLogoImage from "@assets/contralogo_1755245922784.png";
 
 export default function Sidebar() {
   const menuItems = [
@@ -15,11 +16,11 @@ export default function Sidebar() {
       <div className="p-6">
         {/* Bot Logo */}
         <div className="flex items-center space-x-3 mb-8">
-          <div className="w-10 h-10 bg-gradient-to-br from-discord-blue to-discord-green rounded-lg flex items-center justify-center">
-            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-            </svg>
-          </div>
+          <img 
+            src={contraLogoImage} 
+            alt="Contra Logo" 
+            className="w-10 h-10 bg-white rounded-lg p-1"
+          />
           <h1 className="text-xl font-bold text-discord-text">GamerRating</h1>
         </div>
 

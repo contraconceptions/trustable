@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus } from "lucide-react";
 import heroBannerImage from "@assets/generated_images/Dashboard_hero_banner_88642e6a.png";
+import contraLogoImage from "@assets/contralogo_1755245922784.png";
 
 export default function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
@@ -40,9 +41,16 @@ export default function Dashboard() {
             className="w-full h-48 object-cover"
           />
           <div className="absolute inset-0 bg-black/50 flex items-center justify-between p-6">
-            <div>
-              <h1 className="text-4xl font-bold text-white mb-2">GamerRating Dashboard</h1>
-              <p className="text-gray-200 text-lg">Monitor your bot's performance and user ratings across all servers</p>
+            <div className="flex items-center gap-4">
+              <img 
+                src={contraLogoImage} 
+                alt="Contra Logo" 
+                className="w-16 h-16 bg-white rounded-lg p-2"
+              />
+              <div>
+                <h1 className="text-4xl font-bold text-white mb-2">GamerRating Dashboard</h1>
+                <p className="text-gray-200 text-lg">Monitor your bot's performance and user ratings across all servers</p>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <AuthButton />
