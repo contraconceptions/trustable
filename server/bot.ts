@@ -792,11 +792,16 @@ client.on('interactionCreate', async interaction => {
   } catch (error) {
     console.error('Error handling Discord command:', error);
     
-    if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-      await interaction.reply({ 
-        content: '❌ An error occurred while processing your command. Please try again later.', 
-        ephemeral: true 
-      });
+    // Only try to respond if the interaction is still valid and hasn't been responded to
+    try {
+      if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
+        await interaction.reply({ 
+          content: '❌ An error occurred while processing your command. Please try again later.', 
+          ephemeral: true 
+        });
+      }
+    } catch (replyError) {
+      console.error('Failed to send error response:', replyError);
     }
   }
 });
