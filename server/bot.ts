@@ -428,8 +428,15 @@ client.once('ready', async () => {
 client.on('interactionCreate', async interaction => {
   const { user, guild } = interaction;
 
+  // Skip autocomplete interactions as they don't need guild checks
+  if (interaction.isAutocomplete()) {
+    return;
+  }
+
   if (!guild) {
-    await interaction.reply({ content: 'This bot only works in servers!', ephemeral: true });
+    if (interaction.isRepliable()) {
+      await interaction.reply({ content: 'This bot only works in servers!', ephemeral: true });
+    }
     return;
   }
 
@@ -576,7 +583,7 @@ client.on('interactionCreate', async interaction => {
       case 'quickrate': {
         const targetUser = options.getUser('user', true);
         const rating = options.getInteger('rating', true);
-        const comment = options.getString('comment');
+        const comment = options.getString('comment') || undefined;
 
         if (targetUser.id === user.id) {
           await interaction.reply({ content: '❌ You cannot rate yourself!', ephemeral: true });
@@ -632,7 +639,7 @@ client.on('interactionCreate', async interaction => {
 
         const recentRatings = userWithRatings.ratingsReceived.slice(0, 3);
         const recentRatingsText = recentRatings.length > 0 
-          ? recentRatings.map(r => `${getStarDisplay(r.rating)} from **${r.rater?.username || 'Anonymous'}**`).join('\n')
+          ? recentRatings.map(r => `${getStarDisplay(r.rating)} from **${r.raterUser?.username || 'Anonymous'}**`).join('\n')
           : 'No recent ratings';
 
         const embed = new EmbedBuilder()
@@ -785,7 +792,7 @@ client.on('interactionCreate', async interaction => {
   } catch (error) {
     console.error('Error handling Discord command:', error);
     
-    if (!interaction.replied && !interaction.deferred) {
+    if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
       await interaction.reply({ 
         content: '❌ An error occurred while processing your command. Please try again later.', 
         ephemeral: true 
