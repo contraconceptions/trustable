@@ -18,6 +18,7 @@ import {
 } from 'discord.js';
 import { storage } from './storage';
 import type { InsertUser, InsertServer, InsertRating } from '@shared/schema';
+import { logger } from './logger';
 
 const client = new Client({
   intents: [
@@ -41,8 +42,9 @@ setInterval(() => {
 
 async function ensureUserExists(discordUser: any): Promise<string> {
   let user = await storage.getUserByDiscordId(discordUser.id);
-  
+
   if (!user) {
+    logger.info(`User ${discordUser.tag} (${discordUser.id}) not found, creating new record.`);
     const userData: InsertUser = {
       discordId: discordUser.id,
       username: discordUser.username,
@@ -50,22 +52,26 @@ async function ensureUserExists(discordUser: any): Promise<string> {
       avatarUrl: discordUser.displayAvatarURL() || null
     };
     user = await storage.createUser(userData);
+    logger.info(`Created new user record for ${discordUser.tag} (${user.id})`);
   } else {
     // Update user info if it changed
+    logger.debug(`Updating user record for ${discordUser.tag} (${user.id})`);
     await storage.updateUser(user.id, {
       username: discordUser.username,
       discriminator: discordUser.discriminator || '0000',
       avatarUrl: discordUser.displayAvatarURL() || null
     });
+    logger.debug(`User record updated for ${discordUser.tag} (${user.id})`);
   }
-  
+
   return user.id;
 }
 
 async function ensureServerExists(discordGuild: any): Promise<string> {
   let server = await storage.getServerByDiscordId(discordGuild.id);
-  
+
   if (!server) {
+    logger.info(`Server ${discordGuild.name} (${discordGuild.id}) not found, creating new record.`);
     const serverData: InsertServer = {
       discordServerId: discordGuild.id,
       name: discordGuild.name,
@@ -73,15 +79,18 @@ async function ensureServerExists(discordGuild: any): Promise<string> {
       memberCount: discordGuild.memberCount || 0
     };
     server = await storage.createServer(serverData);
+    logger.info(`Created new server record for ${discordGuild.name} (${server.id})`);
   } else {
     // Update server info
+    logger.debug(`Updating server record for ${discordGuild.name} (${server.id})`);
     await storage.updateServer(server.id, {
       name: discordGuild.name,
       iconUrl: discordGuild.iconURL() || null,
       memberCount: discordGuild.memberCount || 0
     });
+    logger.debug(`Server record updated for ${discordGuild.name} (${server.id})`);
   }
-  
+
   return server.id;
 }
 
@@ -93,7 +102,7 @@ function getStarDisplay(rating: number): string {
 
 function getRatingBadge(avgRating: number, totalRatings: number): string {
   if (totalRatings === 0) return '';
-  
+
   const rating = Math.round(avgRating);
   if (rating >= 3 && totalRatings >= 10) return '🏆'; // Champion (3 stars, 10+ ratings)
   if (rating >= 3 && totalRatings >= 5) return '⭐'; // Gold star (3 stars, 5+ ratings)  
@@ -104,7 +113,7 @@ function getRatingBadge(avgRating: number, totalRatings: number): string {
 
 function getRatingTitle(avgRating: number, totalRatings: number): string {
   if (totalRatings === 0) return 'Unrated';
-  
+
   const rating = Math.round(avgRating);
   if (rating >= 3 && totalRatings >= 10) return 'Champion';
   if (rating >= 3 && totalRatings >= 5) return 'Gold Star Player';
@@ -197,6 +206,7 @@ async function handleQuickRating(interaction: any, targetUser: any, rating: numb
     // Check rate limiting
     const canRate = await storage.canUserRate(raterUserId, ratedUserId);
     if (!canRate) {
+      logger.warn(`Rate limit exceeded for user ${raterUser.id} rating ${targetUser.id} in guild ${guild.id}`);
       await interaction.reply({ 
         content: '❌ You can only rate the same user once per 24 hours!', 
         ephemeral: true 
@@ -214,6 +224,7 @@ async function handleQuickRating(interaction: any, targetUser: any, rating: numb
         targetUserId: ratedUserId
       });
     }
+    logger.info(`User ${raterUser.id} rated ${targetUser.id} (${rating} stars) in guild ${guild.id}`);
 
     // Create the rating
     const ratingData: InsertRating = {
@@ -252,7 +263,7 @@ async function handleQuickRating(interaction: any, targetUser: any, rating: numb
 
     await interaction.reply({ embeds: [embed], ephemeral: true });
   } catch (error) {
-    console.error('Error in handleQuickRating:', error);
+    logger.error(`Error in handleQuickRating for user ${raterUser.id} rating ${targetUser.id} in guild ${guild.id}: ${error}`);
     await interaction.reply({ 
       content: '❌ An error occurred while submitting your rating. Please try again.', 
       ephemeral: true 
@@ -270,6 +281,7 @@ async function handleDetailedRating(interaction: any, targetUser: any, rating: n
     // Check rate limiting
     const canRate = await storage.canUserRate(raterUserId, ratedUserId);
     if (!canRate) {
+      logger.warn(`Rate limit exceeded for user ${raterUser.id} rating ${targetUser.id} in guild ${guild.id}`);
       await interaction.reply({ 
         content: '❌ You can only rate the same user once per 24 hours!', 
         ephemeral: true 
@@ -287,6 +299,7 @@ async function handleDetailedRating(interaction: any, targetUser: any, rating: n
         targetUserId: ratedUserId
       });
     }
+    logger.info(`User ${raterUser.id} submitted detailed rating for ${targetUser.id} (${rating} stars) in guild ${guild.id}`);
 
     // Create the rating
     const ratingData: InsertRating = {
@@ -330,7 +343,7 @@ async function handleDetailedRating(interaction: any, targetUser: any, rating: n
 
     await interaction.reply({ embeds: [embed], ephemeral: true });
   } catch (error) {
-    console.error('Error in handleDetailedRating:', error);
+    logger.error(`Error in handleDetailedRating for user ${raterUser.id} rating ${targetUser.id} in guild ${guild.id}: ${error}`);
     await interaction.reply({ 
       content: '❌ An error occurred while submitting your detailed rating. Please try again.', 
       ephemeral: true 
@@ -339,13 +352,13 @@ async function handleDetailedRating(interaction: any, targetUser: any, rating: n
 }
 
 client.once('ready', async () => {
-  console.log(`Discord bot logged in as ${client.user?.tag}!`);
-  
+  logger.info(`Discord bot logged in as ${client.user?.tag}!`);
+
   // Set bot activity/presence
   if (client.user) {
     client.user.setActivity('reputation across servers', { type: 3 }); // Watching
   }
-  
+
   // Register slash commands
   const commands = [
     new SlashCommandBuilder()
@@ -355,7 +368,7 @@ client.once('ready', async () => {
         option.setName('user')
           .setDescription('The player to rate')
           .setRequired(true)),
-    
+
     new SlashCommandBuilder()
       .setName('quickrate')
       .setDescription('⚡ Quick rating with preset options')
@@ -377,7 +390,7 @@ client.once('ready', async () => {
           .setDescription('Quick comment (optional)')
           .setRequired(false)
           .setMaxLength(200)),
-    
+
     new SlashCommandBuilder()
       .setName('rating')
       .setDescription('Check a user\'s rating')
@@ -385,7 +398,7 @@ client.once('ready', async () => {
         option.setName('user')
           .setDescription('The user to check (leave empty for yourself)')
           .setRequired(false)),
-    
+
     new SlashCommandBuilder()
       .setName('leaderboard')
       .setDescription('🏆 View the top-rated users across all servers'),
@@ -397,7 +410,7 @@ client.once('ready', async () => {
     new SlashCommandBuilder()
       .setName('serverstats')
       .setDescription('🏠 View rating statistics for this server'),
-    
+
     new SlashCommandBuilder()
       .setName('profile')
       .setDescription('👤 Show detailed user profile with rating history')
@@ -405,7 +418,7 @@ client.once('ready', async () => {
         option.setName('user')
           .setDescription('User to view profile for (leave empty for yourself)')
           .setRequired(false)),
-    
+
     new SlashCommandBuilder()
       .setName('moderate')
       .setDescription('Moderation commands (Admins only)')
@@ -418,7 +431,7 @@ client.once('ready', async () => {
             option.setName('user')
               .setDescription('User whose ratings to manage')
               .setRequired(true))),
-    
+
     // Context menu command for quick rating checks
     new ContextMenuCommandBuilder()
       .setName('Check Rating')
@@ -427,9 +440,9 @@ client.once('ready', async () => {
 
   try {
     await client.application?.commands.set(commands);
-    console.log('Successfully registered Discord slash commands.');
+    logger.info('Successfully registered Discord slash commands.');
   } catch (error) {
-    console.error('Error registering Discord commands:', error);
+    logger.error(`Error registering Discord commands: ${error}`);
   }
 });
 
@@ -452,12 +465,13 @@ client.on('interactionCreate', async interaction => {
     // Handle button interactions
     if (interaction.isButton()) {
       const customId = interaction.customId;
-      
+
       if (customId.startsWith('quick_rate_')) {
         const [, , rating, targetUserId] = customId.split('_');
         const targetUser = await client.users.fetch(targetUserId);
-        
+
         if (!targetUser) {
+          logger.warn(`Target user ${targetUserId} not found for quick rate button.`);
           await interaction.reply({ content: '❌ User not found!', ephemeral: true });
           return;
         }
@@ -465,7 +479,7 @@ client.on('interactionCreate', async interaction => {
         await handleQuickRating(interaction, targetUser, parseInt(rating), user, guild);
         return;
       }
-      
+
       if (customId.startsWith('detailed_rate_')) {
         const targetUserId = customId.split('_')[2];
         const modal = createRatingModal(targetUserId);
@@ -480,18 +494,20 @@ client.on('interactionCreate', async interaction => {
       if (interaction.customId.startsWith('rating_modal_')) {
         const targetUserId = interaction.customId.split('_')[2];
         const targetUser = await client.users.fetch(targetUserId);
-        
+
         const rating = parseInt(interaction.fields.getTextInputValue('rating_value'));
         const category = interaction.fields.getTextInputValue('rating_category') || '';
         const comment = interaction.fields.getTextInputValue('rating_comment') || '';
         const context = interaction.fields.getTextInputValue('interaction_context') || '';
 
         if (!targetUser) {
+          logger.warn(`Target user ${targetUserId} not found for modal submission.`);
           await interaction.reply({ content: '❌ User not found!', ephemeral: true });
           return;
         }
 
         if (isNaN(rating) || rating < 1 || rating > 3) {
+          logger.warn(`Invalid rating submitted: ${rating}`);
           await interaction.reply({ content: '❌ Please enter a valid rating (1, 2, or 3)!', ephemeral: true });
           return;
         }
@@ -507,7 +523,7 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isUserContextMenuCommand()) {
       if (interaction.commandName === 'Check Rating') {
         const targetUser = interaction.targetUser;
-        
+
         const dbUser = await storage.getUserByDiscordId(targetUser.id);
         if (!dbUser) {
           await interaction.reply({ 
@@ -549,7 +565,7 @@ client.on('interactionCreate', async interaction => {
 
     // Handle slash commands
     if (!interaction.isChatInputCommand()) return;
-    
+
     const { commandName, options } = interaction;
 
     switch (commandName) {
@@ -579,7 +595,7 @@ client.on('interactionCreate', async interaction => {
           .setFooter({ text: 'Your rating helps build the community reputation system' });
 
         const buttons = createQuickRatingButtons(targetUser.id);
-        
+
         await interaction.reply({ 
           embeds: [embed], 
           components: [buttons], 
@@ -611,7 +627,7 @@ client.on('interactionCreate', async interaction => {
 
       case 'rating': {
         const targetUser = options.getUser('user') || user;
-        
+
         try {
           const dbUser = await storage.getUserByDiscordId(targetUser.id);
           if (!dbUser) {
@@ -622,7 +638,7 @@ client.on('interactionCreate', async interaction => {
             return;
           }
         } catch (error) {
-          console.error('Database error in rating command:', error);
+          logger.error(`Database error in rating command for user ${targetUser.id}: ${error}`);
           await interaction.reply({ 
             content: '❌ Database error occurred. Please try again later.', 
             ephemeral: true 
@@ -647,7 +663,7 @@ client.on('interactionCreate', async interaction => {
         // Create enhanced visual progress bars
         const ratingProgress = createProgressBar(avgRating, 3, 15);
         const experienceProgress = createProgressBar(userWithRatings.totalRatings, 50, 12);
-        
+
         // Determine embed color based on rating
         const embedColor = avgRating >= 2.5 ? 0x57F287 : // Green for excellent
                           avgRating >= 2.0 ? 0x5865F2 : // Blue for good
@@ -662,7 +678,7 @@ client.on('interactionCreate', async interaction => {
         const embed = new EmbedBuilder()
           .setColor(embedColor)
           .setTitle(`${badge} ${targetUser.username}'s Reputation Profile`)
-          .setDescription(`**${title}** • Cross-server reputation system`)
+          .setDescription(`**${title}**\n${ratingProgress}\n**${avgRating.toFixed(2)}/3.0** average`)
           .setThumbnail(targetUser.displayAvatarURL())
           .addFields(
             { 
@@ -696,7 +712,7 @@ client.on('interactionCreate', async interaction => {
 
       case 'leaderboard': {
         const topUsers = await storage.getTopRatedUsers(10);
-        
+
         if (topUsers.length === 0) {
           await interaction.reply({ content: '📊 No rated users yet! Be the first to start rating!', ephemeral: true });
           return;
@@ -730,10 +746,10 @@ client.on('interactionCreate', async interaction => {
         }
 
         const subcommand = options.getSubcommand();
-        
+
         if (subcommand === 'remove') {
           const targetUser = options.getUser('user', true);
-          
+
           const dbUser = await storage.getUserByDiscordId(targetUser.id);
           if (!dbUser) {
             await interaction.reply({ content: '❌ User not found in the database!', ephemeral: true });
@@ -752,7 +768,7 @@ client.on('interactionCreate', async interaction => {
 
       case 'profile': {
         const targetUser = options.getUser('user') || user;
-        
+
         const dbUser = await storage.getUserByDiscordId(targetUser.id);
         if (!dbUser) {
           await interaction.reply({ 
@@ -774,7 +790,7 @@ client.on('interactionCreate', async interaction => {
         const avgRating = parseFloat(userWithRatings.averageRating || '0');
         const badge = getRatingBadge(avgRating, userWithRatings.totalRatings);
         const title = getRatingTitle(avgRating, userWithRatings.totalRatings);
-        
+
         // Get recent ratings received (last 5)
         const recentRatings = userWithRatings.ratingsReceived
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -807,8 +823,8 @@ client.on('interactionCreate', async interaction => {
         await interaction.reply({ content: '❌ Unknown command!', ephemeral: true });
     }
   } catch (error) {
-    console.error('Error handling Discord command:', error);
-    
+    logger.error(`Error handling Discord interaction: ${error}`);
+
     // Only try to respond if the interaction is still valid and hasn't been responded to
     try {
       if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
@@ -818,18 +834,18 @@ client.on('interactionCreate', async interaction => {
         });
       }
     } catch (replyError) {
-      console.error('Failed to send error response:', replyError);
+      logger.error(`Failed to send error response to interaction: ${replyError}`);
     }
   }
 });
 
 client.on('guildCreate', async guild => {
-  console.log(`Bot added to new server: ${guild.name} (${guild.id})`);
+  logger.info(`Bot added to new server: ${guild.name} (${guild.id})`);
   await ensureServerExists(guild);
 });
 
 client.on('guildDelete', guild => {
-  console.log(`Bot removed from server: ${guild.name} (${guild.id})`);
+  logger.info(`Bot removed from server: ${guild.name} (${guild.id})`);
 });
 
 // Function to get bot statistics
@@ -846,6 +862,7 @@ export function getBotStats() {
 export async function startBot() {
   const token = process.env.DISCORD_BOT_TOKEN;
   if (!token) {
+    logger.fatal('DISCORD_BOT_TOKEN environment variable is required');
     throw new Error('DISCORD_BOT_TOKEN environment variable is required');
   }
 

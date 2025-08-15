@@ -7,6 +7,41 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
 
+// Rate limiting store
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+
+// Rate limiting middleware
+function rateLimit(windowMs: number, max: number) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const key = req.ip || req.connection.remoteAddress || 'unknown';
+    const now = Date.now();
+    
+    // Clean up expired entries
+    for (const [k, v] of rateLimitStore.entries()) {
+      if (now > v.resetTime) {
+        rateLimitStore.delete(k);
+      }
+    }
+    
+    const record = rateLimitStore.get(key);
+    
+    if (!record || now > record.resetTime) {
+      rateLimitStore.set(key, { count: 1, resetTime: now + windowMs });
+      return next();
+    }
+    
+    if (record.count >= max) {
+      return res.status(429).json({ 
+        message: "Too many requests, please try again later.",
+        retryAfter: Math.ceil((record.resetTime - now) / 1000)
+      });
+    }
+    
+    record.count++;
+    next();
+  };
+}
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
