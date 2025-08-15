@@ -8,7 +8,7 @@ const testimonials = [
     role: "Gaming Community Manager",
     server: "Elite Gamers Hub",
     rating: 5,
-    text: "GamerRating Bot transformed our community. We can instantly identify trustworthy players and the cross-server reputation system means no one can escape their history. Essential for any serious gaming server."
+    text: "Trustable Bot transformed our community. We can instantly identify trustworthy players and the cross-server reputation system means no one can escape their history. Essential for any serious gaming server."
   },
   {
     name: "Sarah Martinez",
@@ -22,7 +22,7 @@ const testimonials = [
     role: "Esports Team Captain",
     server: "Pro Gamers Alliance",
     rating: 5,
-    text: "Finding reliable teammates was always a challenge until we got GamerRating Bot. The interactive rating system and detailed analytics help us build better teams and maintain community standards."
+    text: "Finding reliable teammates was always a challenge until we got Trustable Bot. The interactive rating system and detailed analytics help us build better teams and maintain community standards."
   }
 ];
 
@@ -40,7 +40,7 @@ export function Testimonials() {
       <div className="relative z-10">
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold text-discord-text mb-2">Trusted by Gaming Communities</h2>
-          <p className="text-discord-muted">See what Discord server owners and managers say about GamerRating Bot</p>
+          <p className="text-discord-muted">See what Discord server owners and managers say about Trustable Bot</p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -64,7 +64,7 @@ export function Testimonials() {
         <div className="mt-8 text-center">
           <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-lg p-4 border border-green-500/30">
             <p className="text-discord-text font-medium mb-2">Join 500+ Discord Communities</p>
-            <p className="text-discord-muted text-sm">Building trust and reputation across the Discord gaming ecosystem</p>
+            <p className="text-discord-muted text-sm">Building trust and reputation across the Discord ecosystem with Trustable Bot</p>
           </div>
         </div>
       </div>

@@ -28,7 +28,7 @@ export default function Sidebar() {
             alt="Contra Logo" 
             className="w-10 h-10 bg-white rounded-lg p-1"
           />
-          <h1 className="text-xl font-bold text-discord-text">GamerRating</h1>
+          <h1 className="text-xl font-bold text-discord-text">Trustable</h1>
         </div>
 
         {/* Navigation Menu */}

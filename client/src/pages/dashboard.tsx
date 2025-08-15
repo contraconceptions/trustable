@@ -37,7 +37,7 @@ export default function Dashboard() {
         <div className="relative mb-8 rounded-lg overflow-hidden">
           <img 
             src={heroBannerImage} 
-            alt="GamerRating Dashboard" 
+            alt="Trustable Dashboard" 
             className="w-full h-48 object-cover"
           />
           <div className="absolute inset-0 bg-black/50 flex items-center justify-between p-6">
@@ -48,7 +48,7 @@ export default function Dashboard() {
                 className="w-16 h-16 bg-white rounded-lg p-2"
               />
               <div>
-                <h1 className="text-4xl font-bold text-white mb-2">GamerRating Dashboard</h1>
+                <h1 className="text-4xl font-bold text-white mb-2">Trustable Dashboard</h1>
                 <p className="text-gray-200 text-lg">Monitor your bot's performance and user ratings across all servers</p>
               </div>
             </div>

@@ -1,8 +1,8 @@
-# GamerRating Bot - Discord Reputation System
+# Trustable Bot - Discord Reputation System
 
 ## Overview
 
-GamerRating Bot is a comprehensive Discord reputation system that creates a cross-server trust network for gaming communities. Users can rate each other with a 1-3 star system, with ratings following them across all Discord servers that have the bot installed. The system includes visual badges, titles, interactive rating components, and real-time dashboard monitoring.
+Trustable Bot is a comprehensive Discord reputation system that creates a cross-server trust network for gaming communities. Users can rate each other with a 1-3 star system, with ratings following them across all Discord servers that have the bot installed. The system includes visual badges, titles, interactive rating components, and real-time dashboard monitoring.
 
 ## Key Features
 
@@ -123,13 +123,13 @@ GamerRating Bot is a comprehensive Discord reputation system that creates a cros
 
 ## Getting Started
 
-1. **Invite the Bot**: Add GamerRating Bot to your Discord server
+1. **Invite the Bot**: Add Trustable Bot to your Discord server
 2. **Start Rating**: Use `/rate @username` to begin building community trust
 3. **Monitor Progress**: Check `/serverstats` to see community health
 4. **Access Dashboard**: Visit the web dashboard for detailed analytics
 5. **Build Network**: Connect with other servers to expand the trust network
 
-## Why Choose GamerRating Bot?
+## Why Choose Trustable Bot?
 
 - **Proven Technology**: Built with Discord.js v14 and modern web technologies
 - **Cross-Server Innovation**: Unique reputation system that follows users everywhere

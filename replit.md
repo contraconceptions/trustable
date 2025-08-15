@@ -1,6 +1,6 @@
 # Overview
 
-GamerRating Bot is a Discord bot application that creates a cross-server reputation system for gaming communities. Users can rate each other with a 1-3 star system, with ratings following them across all Discord servers that have the bot installed. The system includes visual badges and titles that appear in user interactions, comprehensive rating profiles, and real-time dashboard monitoring. Built with modern full-stack architecture using React, Express.js, PostgreSQL, and Discord.js v14 with slash commands and context menus.
+Trustable Bot is a Discord bot application that creates a cross-server reputation system for gaming communities. Users can rate each other with a 1-3 star system, with ratings following them across all Discord servers that have the bot installed. The system includes visual badges and titles that appear in user interactions, comprehensive rating profiles, and real-time dashboard monitoring. Built with modern full-stack architecture using React, Express.js, PostgreSQL, and Discord.js v14 with slash commands and context menus.
 
 # User Preferences
 
