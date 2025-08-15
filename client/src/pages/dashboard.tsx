@@ -8,9 +8,13 @@ import BotCommands from "@/components/bot-commands";
 import QuickActions from "@/components/quick-actions";
 import { AuthButton } from "@/components/auth-button";
 import { PersonalStats } from "@/components/personal-stats";
+import { FeaturesShowcase } from "@/components/features-showcase";
+import { Testimonials } from "@/components/testimonials";
+import { StatsHighlights } from "@/components/stats-highlights";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus } from "lucide-react";
+import heroBannerImage from "@assets/generated_images/Dashboard_hero_banner_88642e6a.png";
 
 export default function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
@@ -28,18 +32,25 @@ export default function Dashboard() {
       <Sidebar />
       
       <main className="flex-1 ml-64 p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-discord-text mb-2">Dashboard</h1>
-            <p className="text-discord-muted">Monitor your bot's performance and user ratings across all servers</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <AuthButton />
-            <Button className="bg-discord-blue hover:bg-discord-blue/80 text-white font-medium">
-              <Plus className="w-4 h-4 mr-2" />
-              Invite Bot
-            </Button>
+        {/* Hero Banner */}
+        <div className="relative mb-8 rounded-lg overflow-hidden">
+          <img 
+            src={heroBannerImage} 
+            alt="GamerRating Dashboard" 
+            className="w-full h-48 object-cover"
+          />
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-between p-6">
+            <div>
+              <h1 className="text-4xl font-bold text-white mb-2">GamerRating Dashboard</h1>
+              <p className="text-gray-200 text-lg">Monitor your bot's performance and user ratings across all servers</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <AuthButton />
+              <Button className="bg-discord-blue hover:bg-discord-blue/80 text-white font-medium">
+                <Plus className="w-4 h-4 mr-2" />
+                Invite Bot
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -51,6 +62,9 @@ export default function Dashboard() {
           </TabsList>
           
           <TabsContent value="overview" className="space-y-8">
+            {/* Network Statistics Highlights */}
+            <StatsHighlights />
+            
             {/* Stats Cards */}
             <StatsGrid stats={stats} isLoading={statsLoading} />
 
@@ -61,9 +75,17 @@ export default function Dashboard() {
             </div>
 
             {/* Commands Guide & Quick Actions */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
               <BotCommands />
               <QuickActions />
+            </div>
+            
+            {/* Features Showcase */}
+            <FeaturesShowcase />
+            
+            {/* Testimonials */}
+            <div className="mt-8">
+              <Testimonials />
             </div>
           </TabsContent>
           
