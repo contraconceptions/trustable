@@ -8,6 +8,14 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+## August 15, 2025 - Discord Authentication & Personal Dashboard Implementation
+- **OAuth Integration**: Added Discord authentication for secure user login to web dashboard
+- **Personal Analytics**: Users can now view detailed personal statistics through authenticated web interface
+- **Tab-Based Dashboard**: Separated public server overview from private personal stats
+- **Session Management**: Secure PostgreSQL-based session storage for authenticated users
+- **Enhanced Privacy**: Personal data only accessible to authenticated account owners
+- **User Interface**: Added login/logout buttons, user avatars, and responsive authentication flow
+
 ## August 14, 2025 - Major Bot Enhancement with Advanced Discord Features
 - **Interactive Rating System Implementation**: Added button-based quick ratings and modal forms for detailed feedback
 - **Advanced Visual Elements**: Implemented progress bars, dynamic embed colors, professional badges, and enhanced leaderboards
