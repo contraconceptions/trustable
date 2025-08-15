@@ -1,10 +1,81 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import ConnectPgSimple from "connect-pg-simple";
+import passport from "passport";
+import { Strategy as DiscordStrategy } from "passport-discord";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { storage } from "./storage";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Session configuration
+const PgSession = ConnectPgSimple(session);
+app.use(session({
+  store: new PgSession({
+    conString: process.env.DATABASE_URL,
+    tableName: 'user_sessions'
+  }),
+  secret: process.env.SESSION_SECRET || 'your-session-secret-change-this',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+  }
+}));
+
+// Passport configuration
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Discord OAuth Strategy
+passport.use(new DiscordStrategy({
+  clientID: process.env.DISCORD_CLIENT_ID!,
+  clientSecret: process.env.DISCORD_CLIENT_SECRET!,
+  callbackURL: process.env.DISCORD_REDIRECT_URI || "/auth/discord/callback",
+  scope: ['identify', 'guilds']
+}, async (accessToken: string, refreshToken: string, profile: any, done: any) => {
+  try {
+    // Find or create user in our database
+    let user = await storage.getUserByDiscordId(profile.id);
+    
+    if (!user) {
+      user = await storage.createUser({
+        discordId: profile.id,
+        username: profile.username,
+        discriminator: profile.discriminator,
+        avatarUrl: profile.avatar ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png` : null
+      });
+    } else {
+      // Update user info
+      user = await storage.updateUser(user.id, {
+        username: profile.username,
+        discriminator: profile.discriminator,
+        avatarUrl: profile.avatar ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png` : null
+      });
+    }
+    
+    return done(null, user);
+  } catch (error) {
+    return done(error);
+  }
+}));
+
+passport.serializeUser((user: any, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id: string, done) => {
+  try {
+    const user = await storage.getUser(id);
+    done(null, user);
+  } catch (error) {
+    done(error);
+  }
+});
 
 app.use((req, res, next) => {
   const start = Date.now();

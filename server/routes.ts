@@ -1,10 +1,47 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import passport from "passport";
 import { storage } from "./storage";
+import type { User } from "@shared/schema";
 import { insertRatingSchema } from "@shared/schema";
 import { startBot } from "./bot";
 
+// Authentication middleware
+function requireAuth(req: any, res: any, next: any) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ message: "Authentication required" });
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Authentication routes
+  app.get("/auth/discord", passport.authenticate("discord"));
+  
+  app.get("/auth/discord/callback", 
+    passport.authenticate("discord", { failureRedirect: "/" }),
+    (req, res) => {
+      res.redirect("/dashboard");
+    }
+  );
+  
+  app.get("/auth/logout", (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.redirect("/");
+    });
+  });
+  
+  app.get("/auth/user", (req, res) => {
+    if (req.isAuthenticated()) {
+      res.json(req.user);
+    } else {
+      res.status(401).json({ message: "Not authenticated" });
+    }
+  });
+
   // Dashboard stats endpoint
   app.get("/api/stats", async (req, res) => {
     try {
@@ -67,6 +104,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user ratings:", error);
       res.status(500).json({ message: "Failed to fetch user ratings" });
+    }
+  });
+
+  // Personal dashboard for authenticated users
+  app.get("/api/me", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as User;
+      const userWithRatings = await storage.getUserWithRatings(user.id);
+      res.json(userWithRatings);
+    } catch (error) {
+      console.error("Error fetching personal data:", error);
+      res.status(500).json({ message: "Failed to fetch personal data" });
+    }
+  });
+
+  // Get personal ratings received
+  app.get("/api/me/ratings", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as User;
+      const ratings = await storage.getRatingsByUser(user.id);
+      res.json(ratings);
+    } catch (error) {
+      console.error("Error fetching personal ratings:", error);
+      res.status(500).json({ message: "Failed to fetch personal ratings" });
     }
   });
 
