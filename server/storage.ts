@@ -17,6 +17,17 @@ import {
   type UserWithRatings
 } from "@shared/schema";
 import { db } from "./db";
+
+// Add connection health check
+export async function healthCheck() {
+  try {
+    await db.execute('SELECT 1');
+    return true;
+  } catch (error) {
+    console.error('Database health check failed:', error);
+    return false;
+  }
+}
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 
 export interface IStorage {

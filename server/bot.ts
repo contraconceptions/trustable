@@ -31,6 +31,14 @@ const client = new Client({
 const rateCooldowns = new Collection();
 const ratingInProgress = new Collection();
 
+// Clean up old cooldowns every hour
+setInterval(() => {
+  const oneHour = 60 * 60 * 1000;
+  const now = Date.now();
+  rateCooldowns.sweep((value, key) => now - value > oneHour);
+  ratingInProgress.sweep((value, key) => now - value > oneHour);
+}, 60 * 60 * 1000);
+
 async function ensureUserExists(discordUser: any): Promise<string> {
   let user = await storage.getUserByDiscordId(discordUser.id);
   
@@ -604,10 +612,19 @@ client.on('interactionCreate', async interaction => {
       case 'rating': {
         const targetUser = options.getUser('user') || user;
         
-        const dbUser = await storage.getUserByDiscordId(targetUser.id);
-        if (!dbUser) {
+        try {
+          const dbUser = await storage.getUserByDiscordId(targetUser.id);
+          if (!dbUser) {
+            await interaction.reply({ 
+              content: `❌ ${targetUser.username} hasn't been rated yet!`, 
+              ephemeral: true 
+            });
+            return;
+          }
+        } catch (error) {
+          console.error('Database error in rating command:', error);
           await interaction.reply({ 
-            content: `❌ ${targetUser.username} hasn't been rated yet!`, 
+            content: '❌ Database error occurred. Please try again later.', 
             ephemeral: true 
           });
           return;

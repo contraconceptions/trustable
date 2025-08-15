@@ -51,7 +51,11 @@ export default function Dashboard() {
               <AuthButton />
               <Button 
                 onClick={() => {
-                  const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID || 'YOUR_BOT_CLIENT_ID';
+                  const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
+                  if (!clientId || clientId === 'YOUR_BOT_CLIENT_ID') {
+                    alert('Bot client ID not configured. Please contact the administrator.');
+                    return;
+                  }
                   const permissions = '2147483648'; // Send Messages, Use Slash Commands
                   const scope = 'bot%20applications.commands';
                   const inviteUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=${permissions}&scope=${scope}`;
