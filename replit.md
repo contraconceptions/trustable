@@ -8,6 +8,13 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+## August 15, 2025 - Custom Domain Integration & UI Enhancement
+- **Custom Domain**: Updated all app references to use https://trustable.contraconcepts.com/ 
+- **Header Redesign**: Replaced background image with modern gradient (Discord blue to purple to indigo)
+- **OAuth Configuration**: Updated Discord OAuth redirect URIs for custom domain
+- **Link Updates**: Support, documentation, and issue reporting links now point to custom domain
+- **Brand Consistency**: All external references now use the professional custom domain
+
 ## August 15, 2025 - Discord Authentication & Personal Dashboard Implementation
 - **OAuth Integration**: Added Discord authentication for secure user login to web dashboard
 - **Personal Analytics**: Users can now view detailed personal statistics through authenticated web interface

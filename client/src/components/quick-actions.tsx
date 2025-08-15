@@ -58,7 +58,7 @@ export default function QuickActions() {
             <h4 className="font-medium text-discord-text mb-3">Support</h4>
             <div className="space-y-2">
               <a 
-                href="#" 
+                href="https://trustable.contraconcepts.com/docs" 
                 className="flex items-center text-discord-muted hover:text-discord-blue text-sm transition-colors duration-200"
               >
                 <Book className="w-4 h-4 mr-2" />
@@ -66,7 +66,7 @@ export default function QuickActions() {
                 <ExternalLink className="w-3 h-3 ml-1" />
               </a>
               <a 
-                href="#" 
+                href="https://trustable.contraconcepts.com/support" 
                 className="flex items-center text-discord-muted hover:text-discord-blue text-sm transition-colors duration-200"
               >
                 <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
@@ -76,7 +76,7 @@ export default function QuickActions() {
                 <ExternalLink className="w-3 h-3 ml-1" />
               </a>
               <a 
-                href="#" 
+                href="https://trustable.contraconcepts.com/issues" 
                 className="flex items-center text-discord-muted hover:text-discord-blue text-sm transition-colors duration-200"
               >
                 <Bug className="w-4 h-4 mr-2" />

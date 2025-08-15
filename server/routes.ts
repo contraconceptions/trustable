@@ -19,9 +19,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/auth/discord", passport.authenticate("discord"));
   
   app.get("/auth/discord/callback", 
-    passport.authenticate("discord", { failureRedirect: "/" }),
+    passport.authenticate("discord", { failureRedirect: "https://trustable.contraconcepts.com/" }),
     (req, res) => {
-      res.redirect("/dashboard");
+      res.redirect("https://trustable.contraconcepts.com/dashboard");
     }
   );
   
@@ -30,7 +30,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (err) {
         return res.status(500).json({ message: "Logout failed" });
       }
-      res.redirect("/");
+      res.redirect("https://trustable.contraconcepts.com/");
     });
   });
   

@@ -34,13 +34,8 @@ export default function Dashboard() {
       
       <main className="flex-1 ml-64 p-6">
         {/* Hero Banner */}
-        <div className="relative mb-8 rounded-lg overflow-hidden">
-          <img 
-            src={heroBannerImage} 
-            alt="Trustable Dashboard" 
-            className="w-full h-48 object-cover"
-          />
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-between p-6">
+        <div className="relative mb-8 rounded-lg overflow-hidden bg-gradient-to-r from-discord-blue via-purple-600 to-indigo-600">
+          <div className="absolute inset-0 bg-black/20 flex items-center justify-between p-6">
             <div className="flex items-center gap-4">
               <img 
                 src={contraLogoImage} 
@@ -54,7 +49,16 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-4">
               <AuthButton />
-              <Button className="bg-discord-blue hover:bg-discord-blue/80 text-white font-medium">
+              <Button 
+                onClick={() => {
+                  const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID || 'YOUR_BOT_CLIENT_ID';
+                  const permissions = '2147483648'; // Send Messages, Use Slash Commands
+                  const scope = 'bot%20applications.commands';
+                  const inviteUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=${permissions}&scope=${scope}`;
+                  window.open(inviteUrl, '_blank');
+                }}
+                className="bg-discord-blue hover:bg-discord-blue/80 text-white font-medium"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Invite Bot
               </Button>
