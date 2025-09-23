@@ -29,15 +29,15 @@ const client = new Client({
 });
 
 // Store for cooldowns and temporary data
-const rateCooldowns = new Collection();
-const ratingInProgress = new Collection();
+const rateCooldowns = new Collection<string, number>();
+const ratingInProgress = new Collection<string, number>();
 
 // Clean up old cooldowns every hour
 setInterval(() => {
   const oneHour = 60 * 60 * 1000;
   const now = Date.now();
-  rateCooldowns.sweep((value, key) => now - value > oneHour);
-  ratingInProgress.sweep((value, key) => now - value > oneHour);
+  rateCooldowns.sweep((value: number, key: string) => now - value > oneHour);
+  ratingInProgress.sweep((value: number, key: string) => now - value > oneHour);
 }, 60 * 60 * 1000);
 
 async function ensureUserExists(discordUser: any): Promise<string> {
@@ -628,8 +628,9 @@ client.on('interactionCreate', async interaction => {
       case 'rating': {
         const targetUser = options.getUser('user') || user;
 
+        let dbUser;
         try {
-          const dbUser = await storage.getUserByDiscordId(targetUser.id);
+          dbUser = await storage.getUserByDiscordId(targetUser.id);
           if (!dbUser) {
             await interaction.reply({ 
               content: `❌ ${targetUser.username} hasn't been rated yet!`, 
@@ -862,7 +863,7 @@ export function getBotStats() {
 export async function startBot() {
   const token = process.env.DISCORD_BOT_TOKEN;
   if (!token) {
-    logger.fatal('DISCORD_BOT_TOKEN environment variable is required');
+    logger.error('DISCORD_BOT_TOKEN environment variable is required');
     throw new Error('DISCORD_BOT_TOKEN environment variable is required');
   }
 

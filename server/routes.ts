@@ -65,7 +65,8 @@ function rateLimit(windowMs: number, max: number) {
     const now = Date.now();
     
     // Clean up expired entries
-    for (const [k, v] of store.entries()) {
+    const entries = Array.from(store.entries());
+    for (const [k, v] of entries) {
       if (now > v.resetTime) {
         store.delete(k);
       }
@@ -149,7 +150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     validateQuery(z.object({ limit: limitSchema.optional() })),
     async (req, res) => {
     try {
-      const { limit } = req.query;
+      const { limit } = req.query as { limit?: number };
       const recentRatings = await storage.getRecentRatings(limit);
       res.json(recentRatings);
     } catch (error) {
@@ -163,7 +164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     validateQuery(z.object({ limit: limitSchema.optional() })),
     async (req, res) => {
     try {
-      const { limit } = req.query;
+      const { limit } = req.query as { limit?: number };
       const topUsers = await storage.getTopRatedUsers(limit);
       res.json(topUsers);
     } catch (error) {
